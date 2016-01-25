@@ -1,15 +1,10 @@
 #!/usr/bin/python
-#Autor: Rildo Souza - rildo.souza@rnp.br, rildo.ras@gmail.com
-#Funcao: Este script acessa a interface web do peakflow e busca pelos alertas High gerados recentemente 
-# O Script permite que o usuario especifique os filtros dos alertas Highs que deseja buscar.
-# Primeiramente o script acessa o peakflow, posteriormente acessa o alerta HIGH e gera os flows referentes a aquele ataque.
-# Apos a geracao dos raw flows, cada alerta HIGH gera um arquivo que sera processado por outro script
+#Autor: Rildo Souza - rildo.ras@gmail.com
+#Function: The application allows the user to enter a filter and specify the type of attack you want to monitor, as well as criticality , ie ( Attack Low, Medium and High) , aft#er the filter being applied, the application generates a txt file to the user.
 
-#Dependencias:
-#Instalar os seguintes pacotes
+#Dependencies:
+# Necessary install these packets
 # pip install BeautifulSoup4(bs4)
-# Instalar Selenium
-# pip install selenium
 
 
 import os
@@ -31,12 +26,12 @@ class AttackMonitor:
 	def __init__ ( self , conf ):
 		self.conf = conf
 
-	#Pega todos os alarmes do tipo Misuse do Peakflow
+	#Get all alarms of Misuse Type from Peakflow
 	def getAlarms(self , filter):
               
 	        global filter2
                 filter2 = filter
-		print "Pegando os alarmes do Peakflow " + filter
+		print "Getting all alarms from Peakflow " + filter
 		payload = { 
 			'api_key' : self.conf['apiKey'] , 
 			'filter' : filter
@@ -44,10 +39,10 @@ class AttackMonitor:
 		response = requests.get( self.conf['address'] + '/arborws/alerts' , verify=False ,  params=payload )
 		return response.json()
 	
-	#Pega os reports gerados 
+	#Get reports  
 	def getReport (self , alarm):
  
-		print "Gerando reports dos alarmes " + alarm['id']
+		print "Generating report from alarms " + alarm['id']
 		index = 0
 		with session() as request:
 			credentials = {
@@ -57,7 +52,6 @@ class AttackMonitor:
 			}
 			request.allow_redirects = True
 			response = request.post( self.conf['address'], verify=False, data=credentials)
-			#response = request.get( self.conf['address'] + "/reports/view?popup=1&completed=1&id=alert_" + alarm['id'])
 			response = request.get(self.conf['address'] + '/page?id=profiled_router_alert&alert_id=' + alarm['id'])
                         
                        
@@ -71,9 +65,9 @@ class AttackMonitor:
                         c = table.find('div')
                         c.extract()
                         
-                        tipo_ataque = c.contents[1]
-                        global tipo_ataque2
-                        tipo_ataque2 = ' '.join(tipo_ataque.split())
+                        type_attack = c.contents[1]
+                        global type_attack2
+                        type_attack2 = ' '.join(type_attack.split())
 
 			a = page.find('a',{'class': 'post_link pdf_no_print'})
 			requestHeaders = {
@@ -96,9 +90,8 @@ class AttackMonitor:
 			}
 
 			response = request.post(self.conf['address'] + "/page?id=query_raw_flows", data=data, headers=requestHeaders)
-                        #response = request.post(self.conf['address'] + "/page?id=query_raw_flows",  headers=requestHeaders)
                        
-			#Parseando pagina HTML 
+			#Parseaning HTML Page 
 			report = ''
 			page = BeautifulSoup(response.text, 'lxml')
 			table = page.find('table', {'class': 'chart'})
@@ -108,7 +101,7 @@ class AttackMonitor:
 			for row in rows:
 				if index > 1 :
 					cols = row.findAll('td')
-					#Checa se e uma linha valida
+					#Check if line is valid 
 					if cols[0] :
 						for col in cols:
 							text = col.findAll(text=True)
@@ -119,7 +112,7 @@ class AttackMonitor:
 
 				index = index + 1
 			
-			#Remove as linhas em branco no final do arquivo 
+			#Remove empty lines in the final of file  
 			report = report[:-3]
 
 			reportFile = open(self.conf['path'] + '/' + alarm['id'] + '.txt' , 'w')
@@ -128,7 +121,7 @@ class AttackMonitor:
 				
 		return True
 		
-	#Verifica se o alarme ja esta no arquivo alarms
+	#Verify if alarm is the alarm file 
 	def colectReports (self):
 		fileAlarms = open(self.conf['path'] + '/alarms.txt' , "a+")
 		alarmsRecognized = fileAlarms.read()
@@ -138,21 +131,15 @@ class AttackMonitor:
 
 		alarms = []
 		
-		#Pega todos os alarmes que estao de acordo com os filtros 
+		#Get all alarm according the filters  
 		for filter in self.conf['filters']:
 			alarms = alarms + self.getAlarms(filter)
                         
 		
-		#Gera todos os reports 
-		#for alarm in alarms:
-		#	if( alarmsRecognized.find(alarm['id']) < 0 ):
-	       #		print 'Type: ' + alarm['type'] + " - ID: " + alarm['id']
-		#		self.generateReport(alarm)
-		
-		#Espera x segundos pela geracao dos reports
+		#Waiting for x seconds to generating reports 
 		time.sleep(self.conf['waitGenerateReport'])
 		
-		#Pega todos os alarmes 
+		#Get all alarms  
 		for alarm in alarms:
 			if( alarmsRecognized.find(alarm['id']) < 0 ):				
 				if (self.getReport(alarm)):
@@ -160,45 +147,29 @@ class AttackMonitor:
 
 					#print self.conf['path'] + '/' + alarm['id'] + '.txt'
 					#print self.conf['notify']
-                                        #print alarm['id'] + " " + alarm['type'] + " " + alarm['annotations'][0]['content'] +  tipo_ataque2 + filter2
-                                        #print alarm['id'] + " " + alarm['type'] + " " + tipo_ataque2 + "" + filter2
-                                        
-                                        call([ self.conf['notify2'], self.conf['path'] + '/' + alarm['id'] + '.txt' , alarm['id'],  alarm['max_impact_bps'],  alarm['max_impact_pps'] ,  tipo_ataque2,  filter2])
-      
-                                       # call([ self.conf['notify2'], self.conf['path'] + '/' + alarm['id'] + '.txt' , alarm['id'],  alarm['max_impact_bps'],  alarm['max_impact_pps']])
-
                                         #print self.conf['path'] + '/' + alarm['id'] + '.txt'
-                                        PATH = self.conf['path'] + '/' + alarm['id'] + '.txt'
-                                        if path.exists(PATH) and path.isfile(PATH):
-                                           call([ self.conf['notify'], self.conf['path'] + '/' + alarm['id'] + '.txt' , alarm['id'] , alarm['max_impact_bps'],  alarm['max_impact_pps'] ,  tipo_ataque2])
-                                       #    call([ self.conf['notify'], self.conf['path'] + '/' + alarm['id'] + '.txt' , alarm['id'] , alarm['max_impact_bps'],  alarm['max_impact_pps']])
-                                        else:
-                                           print "Arquivo nao existe" 
- 
-	#				call([ self.conf['notify'], self.conf['path'] + '/' + alarm['id'] + '.txt' , alarm['id'] , alarm['max_impact_bps'],  alarm['max_impact_pps'] ,  tipo_ataque2])
-					#call([ self.conf['notify'], self.conf['path'] + '/' + alarm['id'] + '.txt' , alarm['id'] ])
+					call([ self.conf['path'] + '/' + alarm['id'] + '.txt' , alarm['id'] , alarm['max_impact_bps'],  alarm['max_impact_pps'] ,  type_attack2])
 				
 		fileAlarms.close()
-		
+
+# Start the information about the Peakflow Web Page 
+####################################################		
+####################################################
 serverConf = {
-'address' : 'https://200.143.252.235',
-'apiKey' : 'tAgHUCyepdvR0ktl',
-'username' : 'caisadm',
-'password' : '3k5Y!2wS',
-'path' : '/home/mngt/scripts/peakflow/attackReport/reports', 
+'address' : 'https://IP Address',
+'apiKey' : 'passwd generate in the web page of Peakflow',
+'username' : 'user ',
+'password' : 'passwd of user',
+'path' : '/home/scripts/peakflow/reports', 
 'waitGenerateReport' : 30,
-'notify' : '/home/mngt/scripts/peakflow/notify.pl',
-'notify2' : '/home/mngt/scripts/peakflow/attackReport/peakflow_old/notify2.sh',
 'filters' :  [
-###################'at:"TCP#SYN"#sts:recent#sev:high',
-##################'at:"TCP#RST"#sts:recent#sev:high',
-################'at:"ICMP"#sts:recent#sev:high',
-################'at:"NTP#Amplification"#sts:recent#sev:high',
-################'at:"TCP#NULL"#sts:recent#sev:high',
-#'at:"DoS#UDP#Host"#sts:recent#sev:high',
-                 'at:"Fragmentation" sts:recent sev:high',
- 
-                
+             'at:"TCP SYN" sts:recent sev:high',
+             'at:"TCP RST" sts:recent sev:high',
+             'at:"ICMP" sts:recent sev:high',
+             'at:"NTP Amplification" sts:recent sev:high',
+             'at:"TCP NULL" sts:recent sev:high',
+             'at:"DoS UDP Host" sts:recent sev:high',
+             'at:"Fragmentation" sts:recent sev:high',
 	]
 }
 
