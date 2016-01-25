@@ -29,7 +29,7 @@ Running the Application
 
 There are two versions of the application
 
-First =  attackReport_old_en.py ( If you have ArbOS before 6 )
+First Verson - attackReport_old_en.py ( If you have ArbOS before 6 )
 
 1 - Install Python 2.7.9
 
@@ -50,7 +50,7 @@ First =  attackReport_old_en.py ( If you have ArbOS before 6 )
 9 - ./run.sh
 
 
-Second = attackReport_en.py ( If you have ArbOS 6 or above ) 
+Second Version - attackReport_en.py ( If you have ArbOS 6 or above ) 
 
 
 1 - Install Python 2.7.9
